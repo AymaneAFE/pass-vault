@@ -148,7 +148,6 @@ public class AuthService {
             return new TokenValidationResponse(false, "Token is missing");
         }
 
-        // Remove "Bearer " prefix if present
         if (token.startsWith("Bearer ")) {
             token = token.substring(7);
         }
