@@ -1,8 +1,8 @@
-package org.example.generator_password.service;
+package passvault.passwordgeneratorservice.service;
 
-import org.example.generator_password.dto.PasswordGeneratorRequest;
-import org.example.generator_password.dto.PasswordGeneratorResponse;
-import org.example.generator_password.dto.PasswordStrengthResponse;
+import passvault.passwordgeneratorservice.dto.PasswordGeneratorRequest;
+import passvault.passwordgeneratorservice.dto.PasswordGeneratorResponse;
+import passvault.passwordgeneratorservice.dto.PasswordStrengthResponse;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
@@ -18,13 +18,18 @@ public class PasswordGeneratorService {
     private static final String AMBIGUOUS = "0O1lI";
 
     private final SecureRandom random = new SecureRandom();
+
     public PasswordGeneratorResponse generate(PasswordGeneratorRequest request) {
         StringBuilder charset = new StringBuilder();
 
-        if (request.isIncludeLowercase()) charset.append(LOWERCASE);
-        if (request.isIncludeUppercase()) charset.append(UPPERCASE);
-        if (request.isIncludeNumbers()) charset.append(NUMBERS);
-        if (request.isIncludeSymbols()) charset.append(SYMBOLS);
+        if (request.isIncludeLowercase())
+            charset.append(LOWERCASE);
+        if (request.isIncludeUppercase())
+            charset.append(UPPERCASE);
+        if (request.isIncludeNumbers())
+            charset.append(NUMBERS);
+        if (request.isIncludeSymbols())
+            charset.append(SYMBOLS);
 
         String charsetStr = charset.toString();
 
@@ -54,6 +59,7 @@ public class PasswordGeneratorService {
                 .strengthLabel(getStrengthLabel(strength))
                 .build();
     }
+
     public PasswordStrengthResponse checkStrength(String password) {
         int score = calculateStrength(password);
         List<String> suggestions = generateSuggestions(password);
@@ -64,13 +70,19 @@ public class PasswordGeneratorService {
                 .suggestions(suggestions)
                 .build();
     }
+
     private String getStrengthLabel(int score) {
-        if (score < 30) return "Weak";
-        if (score < 50) return "Fair";
-        if (score < 70) return "Good";
-        if (score < 90) return "Strong";
+        if (score < 30)
+            return "Weak";
+        if (score < 50)
+            return "Fair";
+        if (score < 70)
+            return "Good";
+        if (score < 90)
+            return "Strong";
         return "Very Strong";
     }
+
     private int calculateStrength(String password) {
         int score = 0;
 
@@ -78,16 +90,22 @@ public class PasswordGeneratorService {
         score += Math.min(password.length() * 4, 40);
 
         // Character variety
-        if (password.matches(".*[a-z].*")) score += 10;
-        if (password.matches(".*[A-Z].*")) score += 10;
-        if (password.matches(".*[0-9].*")) score += 10;
-        if (password.matches(".*[!@#$%^&*()_+\\-=\\[\\]{}|;:,.<>?].*")) score += 20;
+        if (password.matches(".*[a-z].*"))
+            score += 10;
+        if (password.matches(".*[A-Z].*"))
+            score += 10;
+        if (password.matches(".*[0-9].*"))
+            score += 10;
+        if (password.matches(".*[!@#$%^&*()_+\\-=\\[\\]{}|;:,.<>?].*"))
+            score += 20;
 
         // Bonus for mixing
-        if (password.length() >= 12) score += 10;
+        if (password.length() >= 12)
+            score += 10;
 
         return Math.min(score, 100);
     }
+
     private List<String> generateSuggestions(String password) {
         List<String> suggestions = new ArrayList<>();
 
@@ -102,6 +120,7 @@ public class PasswordGeneratorService {
         if (!password.matches(".*[!@#$%^&*()_+\\-=\\[\\]{}|;:,.<>?].*"))
             suggestions.add("Add special characters");
 
-        return suggestions;}
+        return suggestions;
+    }
 
 }

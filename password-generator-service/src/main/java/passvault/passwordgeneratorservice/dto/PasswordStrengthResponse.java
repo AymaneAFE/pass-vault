@@ -1,9 +1,10 @@
-package org.example.generator_password.dto;
+package passvault.passwordgeneratorservice.dto;
 
 import lombok.Builder;
 import lombok.Data;
 
 import java.util.List;
+
 @Data
 @Builder
 

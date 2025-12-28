@@ -1,4 +1,4 @@
-package org.example.generator_password.dto;
+package passvault.passwordgeneratorservice.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.Builder;

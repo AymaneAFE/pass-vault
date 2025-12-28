@@ -1,12 +1,12 @@
-package org.example.generator_password.controller;
+package passvault.passwordgeneratorservice.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.example.generator_password.dto.PasswordGeneratorRequest;
-import org.example.generator_password.dto.PasswordGeneratorResponse;
-import org.example.generator_password.dto.PasswordStrengthRequest;
-import org.example.generator_password.dto.PasswordStrengthResponse;
-import org.example.generator_password.service.PasswordGeneratorService;
+import passvault.passwordgeneratorservice.dto.PasswordGeneratorRequest;
+import passvault.passwordgeneratorservice.dto.PasswordGeneratorResponse;
+import passvault.passwordgeneratorservice.dto.PasswordStrengthRequest;
+import passvault.passwordgeneratorservice.dto.PasswordStrengthResponse;
+import passvault.passwordgeneratorservice.service.PasswordGeneratorService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 

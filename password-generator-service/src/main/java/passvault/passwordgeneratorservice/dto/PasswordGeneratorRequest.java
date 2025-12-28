@@ -1,4 +1,4 @@
-package org.example.generator_password.dto;
+package passvault.passwordgeneratorservice.dto;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -9,7 +9,8 @@ import lombok.Data;
 @Builder
 public class PasswordGeneratorRequest {
     @Builder.Default
-    @Min(8) @Max(128)
+    @Min(8)
+    @Max(128)
     private int length = 16;
 
     @Builder.Default
