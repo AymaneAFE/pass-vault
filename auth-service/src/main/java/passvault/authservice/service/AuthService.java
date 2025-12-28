@@ -9,6 +9,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import passvault.authservice.dto.*;
+import passvault.authservice.event.EventPublisher;
 import passvault.authservice.exception.TokenRefreshException;
 import passvault.authservice.exception.UserAlreadyExistsException;
 import passvault.authservice.model.RefreshToken;
@@ -31,6 +32,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
     private final RefreshTokenService refreshTokenService;
+    private final EventPublisher eventPublisher;
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -57,6 +59,9 @@ public class AuthService {
         user.setRoles(roles);
 
         userRepository.save(user);
+
+        // Publish event
+        eventPublisher.publishUserRegistered(user);
 
         // Authenticate user after registration
         Authentication authentication = authenticationManager.authenticate(
