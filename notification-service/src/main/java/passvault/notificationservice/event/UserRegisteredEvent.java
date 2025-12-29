@@ -12,6 +12,7 @@ import java.io.Serializable;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserRegisteredEvent implements Serializable {
+    private String userId;
     private String email;
     private String username;
 }
