@@ -1,0 +1,37 @@
+# Build artifacts
+**/target/
+**/*.jar
+**/*.war
+**/*.class
+
+# IDE files
+**/.idea/
+**/.vscode/
+**/*.iml
+
+# Git
+**/.git/
+**/.gitignore
+
+# Docker
+**/Dockerfile*
+**/.dockerignore
+docker-compose*.yml
+
+# Logs
+**/*.log
+**/logs/
+
+# OS files
+**/.DS_Store
+**/Thumbs.db
+
+# Test files
+**/test/
+
+# Documentation
+**/*.md
+**/docs/
+
+# Node modules (if any)
+**/node_modules/

@@ -1,0 +1,16 @@
+target/
+*.jar
+*.war
+*.class
+.idea/
+*.iml
+.git/
+.gitignore
+Dockerfile*
+.dockerignore
+*.log
+logs/
+.DS_Store
+Thumbs.db
+test/
+*.md
