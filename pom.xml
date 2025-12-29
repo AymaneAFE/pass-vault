@@ -7,6 +7,16 @@
     <groupId>passvault</groupId>
     <artifactId>pass-manager</artifactId>
     <version>1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>services/api-gateway</module>
+        <module>services/auth-service</module>
+        <module>services/eureka-server</module>
+        <module>services/notification-service</module>
+        <module>services/password-generator-service</module>
+        <module>services/vault-service</module>
+    </modules>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
