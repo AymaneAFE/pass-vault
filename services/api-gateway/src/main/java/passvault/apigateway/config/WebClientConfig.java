@@ -1,6 +1,6 @@
 package passvault.apigateway.config;
 
-import org.springframework.cloud.client.loadbalancer.LoadBalanced;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestClient;
@@ -8,8 +8,10 @@ import org.springframework.web.client.RestClient;
 @Configuration
 public class WebClientConfig {
 
+    @Value("${gateway.services.auth-service.url:http://localhost:8081}")
+    private String authServiceUrl;
+
     @Bean
-    @LoadBalanced
     public RestClient.Builder restClientBuilder() {
         return RestClient.builder();
     }
@@ -17,7 +19,7 @@ public class WebClientConfig {
     @Bean
     public RestClient authServiceClient(RestClient.Builder builder) {
         return builder
-                .baseUrl("http://auth-service")
+                .baseUrl(authServiceUrl)
                 .build();
     }
 }
