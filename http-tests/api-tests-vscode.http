@@ -1,0 +1,873 @@
+### ============================================================================
+### Pass-Vault Complete API Test Suite
+### ============================================================================
+### This file contains tests for ALL endpoints in the Pass-Vault application
+### Compatible with VSCode REST Client extension
+### 
+### Services Covered:
+### - Auth Service (8081): register, login, logout, refresh, validate
+### - Vault Service (8082): categories CRUD, entries CRUD
+### - Password Generator Service (8083): generate (GET/POST), strength
+### - Notification Service (8085): email
+###
+### All requests go through the API Gateway (8080)
+### ============================================================================
+
+### ======================
+### CONFIGURATION
+### ======================
+@baseUrl = http://localhost:8080
+@contentType = application/json
+
+### ============================================================================
+### PART 1: AUTH SERVICE ENDPOINTS (/api/auth/**)
+### ============================================================================
+
+### ----------------------------------------------------------------------------
+### 1.1 POST /api/auth/register - Register a new user
+### ----------------------------------------------------------------------------
+### Required fields: username (3-50 chars), email (valid email), password (min 8 chars)
+# @name register
+POST {{baseUrl}}/api/auth/register
+Content-Type: {{contentType}}
+
+{
+    "username": "testuser",
+    "email": "testuser@example.com",
+    "password": "SecurePass123!"
+}
+
+### Expected Response (200 OK):
+### { "accessToken": "...", "refreshToken": "...", "expiresIn": 900000, "username": "testuser" }
+
+### ----------------------------------------------------------------------------
+### 1.1b POST /api/auth/register - Register second user for testing
+### ----------------------------------------------------------------------------
+# @name register2
+POST {{baseUrl}}/api/auth/register
+Content-Type: {{contentType}}
+
+{
+    "username": "testuser2",
+    "email": "testuser2@example.com",
+    "password": "SecurePass456!"
+}
+
+### ----------------------------------------------------------------------------
+### 1.2 POST /api/auth/login - Login with credentials
+### ----------------------------------------------------------------------------
+### Required fields: username, password
+# @name login
+POST {{baseUrl}}/api/auth/login
+Content-Type: {{contentType}}
+
+{
+    "username": "testuser",
+    "password": "SecurePass123!"
+}
+
+### Expected Response (200 OK):
+### { "accessToken": "...", "refreshToken": "...", "expiresIn": 900000, "username": "testuser" }
+
+### Extract tokens from login response
+@accessToken = {{login.response.body.accessToken}}
+@refreshToken = {{login.response.body.refreshToken}}
+
+### ----------------------------------------------------------------------------
+### 1.3 GET /api/auth/validate - Validate JWT token
+### ----------------------------------------------------------------------------
+### This endpoint is used internally by API Gateway to validate tokens
+GET {{baseUrl}}/api/auth/validate
+Authorization: Bearer {{accessToken}}
+
+### Expected Response (200 OK):
+### { "valid": true, "username": "testuser", "userId": "uuid", "roles": ["ROLE_USER"] }
+
+### ----------------------------------------------------------------------------
+### 1.4 GET /api/auth/validate - Validate with invalid token
+### ----------------------------------------------------------------------------
+GET {{baseUrl}}/api/auth/validate
+Authorization: Bearer invalid_token_here
+
+### Expected Response (200 OK):
+### { "valid": false, "message": "Token is invalid or expired" }
+
+### ----------------------------------------------------------------------------
+### 1.5 POST /api/auth/refresh - Refresh access token
+### ----------------------------------------------------------------------------
+# @name refresh
+POST {{baseUrl}}/api/auth/refresh
+Content-Type: {{contentType}}
+
+{
+    "refreshToken": "{{refreshToken}}"
+}
+
+### Expected Response (200 OK):
+### { "accessToken": "new-token", "refreshToken": "...", "expiresIn": 900000, "username": "testuser" }
+
+### Update access token with refreshed token (optional)
+@newAccessToken = {{refresh.response.body.accessToken}}
+
+### ============================================================================
+### PART 2: CATEGORY ENDPOINTS (/api/vault/categories/**)
+### ============================================================================
+
+### ----------------------------------------------------------------------------
+### 2.1 POST /api/vault/categories - Create a category
+### ----------------------------------------------------------------------------
+### Required fields: name (max 100 chars)
+# @name createCategory1
+POST {{baseUrl}}/api/vault/categories
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+    "name": "Social Media"
+}
+
+### Expected Response (201 Created):
+### { "id": "uuid", "name": "Social Media", "userId": "uuid", "createdAt": "...", "updatedAt": "..." }
+
+### Extract category ID
+@categoryId1 = {{createCategory1.response.body.id}}
+
+### ----------------------------------------------------------------------------
+### 2.1b POST /api/vault/categories - Create second category
+### ----------------------------------------------------------------------------
+# @name createCategory2
+POST {{baseUrl}}/api/vault/categories
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+    "name": "Banking"
+}
+
+### Expected Response (201 Created):
+### { "id": "uuid", "name": "Banking", "userId": "uuid" }
+
+### Extract category ID
+@categoryId2 = {{createCategory2.response.body.id}}
+
+### ----------------------------------------------------------------------------
+### 2.1c POST /api/vault/categories - Create third category
+### ----------------------------------------------------------------------------
+# @name createCategory3
+POST {{baseUrl}}/api/vault/categories
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+    "name": "Work"
+}
+
+### Expected Response (201 Created):
+### { "id": "uuid", "name": "Work", "userId": "uuid" }
+
+### Extract category ID
+@categoryId3 = {{createCategory3.response.body.id}}
+
+### ----------------------------------------------------------------------------
+### 2.2 GET /api/vault/categories - List all categories
+### ----------------------------------------------------------------------------
+GET {{baseUrl}}/api/vault/categories
+Authorization: Bearer {{accessToken}}
+
+### Expected Response (200 OK):
+### [ { "id": "uuid", "name": "Social Media", ... }, ... ]
+
+### ----------------------------------------------------------------------------
+### 2.3 GET /api/vault/categories/{id} - Get category by ID
+### ----------------------------------------------------------------------------
+GET {{baseUrl}}/api/vault/categories/{{categoryId1}}
+Authorization: Bearer {{accessToken}}
+
+### Expected Response (200 OK):
+### { "id": "uuid", "name": "Social Media", "userId": "uuid", ... }
+
+### ----------------------------------------------------------------------------
+### 2.4 PUT /api/vault/categories/{id} - Update category
+### ----------------------------------------------------------------------------
+PUT {{baseUrl}}/api/vault/categories/{{categoryId1}}
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+    "name": "Social Networks"
+}
+
+### Expected Response (200 OK):
+### { "id": "uuid", "name": "Social Networks", ... }
+
+### ----------------------------------------------------------------------------
+### 2.5 DELETE /api/vault/categories/{id} - Delete category
+### ----------------------------------------------------------------------------
+### (Will delete categoryId3 to keep others for entry tests)
+DELETE {{baseUrl}}/api/vault/categories/{{categoryId3}}
+Authorization: Bearer {{accessToken}}
+
+### Expected Response (204 No Content)
+
+### ============================================================================
+### PART 3: VAULT ENTRY ENDPOINTS (/api/vault/entries/**)
+### ============================================================================
+
+### ----------------------------------------------------------------------------
+### 3.1 POST /api/vault/entries - Create vault entry with category
+### ----------------------------------------------------------------------------
+### Required fields: title, password
+### Optional fields: username, url, notes, categoryId
+# @name createEntry1
+POST {{baseUrl}}/api/vault/entries
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+    "title": "Twitter/X Account",
+    "username": "mytwitter",
+    "password": "TwitterPass123!",
+    "url": "https://x.com",
+    "notes": "My personal Twitter account",
+    "categoryId": "{{categoryId1}}"
+}
+
+### Expected Response (201 Created):
+### { "id": "uuid", "title": "Twitter/X Account", "username": "mytwitter", "password": "encrypted", ... }
+
+@entryId1 = {{createEntry1.response.body.id}}
+
+### ----------------------------------------------------------------------------
+### 3.1b POST /api/vault/entries - Create entry without category
+### ----------------------------------------------------------------------------
+# @name createEntry2
+POST {{baseUrl}}/api/vault/entries
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+    "title": "Random Website",
+    "username": "user123",
+    "password": "RandomPass456!",
+    "url": "https://example.com",
+    "notes": "No category assigned"
+}
+
+### Expected Response (201 Created)
+
+### Extract entry ID
+@entryId2 = {{createEntry2.response.body.id}}
+
+### ----------------------------------------------------------------------------
+### 3.1c POST /api/vault/entries - Create entry in banking category
+### ----------------------------------------------------------------------------
+# @name createEntry3
+POST {{baseUrl}}/api/vault/entries
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+    "title": "Bank of America",
+    "username": "bankuser",
+    "password": "BankSecure789!",
+    "url": "https://bankofamerica.com",
+    "notes": "Primary checking account",
+    "categoryId": "{{categoryId2}}"
+}
+
+### Expected Response (201 Created)
+
+### Extract entry ID
+@entryId3 = {{createEntry3.response.body.id}}
+
+### ----------------------------------------------------------------------------
+### 3.1d POST /api/vault/entries - Minimal entry (only required fields)
+### ----------------------------------------------------------------------------
+# @name createEntry4
+POST {{baseUrl}}/api/vault/entries
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+    "title": "Simple Entry",
+    "password": "SimplePass!123"
+}
+
+### Expected Response (201 Created)
+
+### Extract entry ID
+@entryId4 = {{createEntry4.response.body.id}}
+
+### ----------------------------------------------------------------------------
+### 3.2 GET /api/vault/entries - List all entries
+### ----------------------------------------------------------------------------
+GET {{baseUrl}}/api/vault/entries
+Authorization: Bearer {{accessToken}}
+
+### Expected Response (200 OK):
+### [ { "id": "uuid", "title": "Twitter/X Account", ... }, ... ]
+
+### ----------------------------------------------------------------------------
+### 3.3 GET /api/vault/entries/{id} - Get entry by ID
+### ----------------------------------------------------------------------------
+GET {{baseUrl}}/api/vault/entries/{{entryId1}}
+Authorization: Bearer {{accessToken}}
+
+### Expected Response (200 OK):
+### { "id": "uuid", "title": "Twitter/X Account", "password": "decrypted-password", ... }
+
+### ----------------------------------------------------------------------------
+### 3.4 PUT /api/vault/entries/{id} - Update entry (full update)
+### ----------------------------------------------------------------------------
+PUT {{baseUrl}}/api/vault/entries/{{entryId1}}
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+    "title": "X (Twitter) Account - Updated",
+    "username": "mytwitter_new",
+    "password": "NewTwitterPass123!",
+    "url": "https://x.com/login",
+    "notes": "Updated notes - migrated from Twitter to X",
+    "categoryId": "{{categoryId1}}"
+}
+
+### Expected Response (200 OK)
+
+### ----------------------------------------------------------------------------
+### 3.5 PUT /api/vault/entries/{id} - Move entry to different category
+### ----------------------------------------------------------------------------
+PUT {{baseUrl}}/api/vault/entries/{{entryId2}}
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+    "title": "Random Website",
+    "username": "user123",
+    "password": "RandomPass456!",
+    "url": "https://example.com",
+    "notes": "Moved to Banking category",
+    "categoryId": "{{categoryId2}}"
+}
+
+### ----------------------------------------------------------------------------
+### 3.6 DELETE /api/vault/entries/{id} - Delete entry
+### ----------------------------------------------------------------------------
+DELETE {{baseUrl}}/api/vault/entries/{{entryId4}}
+Authorization: Bearer {{accessToken}}
+
+### Expected Response (204 No Content)
+
+### ============================================================================
+### PART 4: PASSWORD GENERATOR ENDPOINTS (/api/generator/**)
+### ============================================================================
+
+### ----------------------------------------------------------------------------
+### 4.1 GET /api/generator/generate - Generate password with query params
+### ----------------------------------------------------------------------------
+### Default: length=16, numbers=true, symbols=true
+GET {{baseUrl}}/api/generator/generate
+Authorization: Bearer {{accessToken}}
+
+### Expected Response (200 OK):
+### { "password": "aB3$kL9@...", "length": 16, ... }
+
+### ----------------------------------------------------------------------------
+### 4.1b GET /api/generator/generate - Generate with custom length
+### ----------------------------------------------------------------------------
+GET {{baseUrl}}/api/generator/generate?length=24&numbers=true&symbols=true
+Authorization: Bearer {{accessToken}}
+
+### ----------------------------------------------------------------------------
+### 4.1c GET /api/generator/generate - Generate without symbols
+### ----------------------------------------------------------------------------
+GET {{baseUrl}}/api/generator/generate?length=20&numbers=true&symbols=false
+Authorization: Bearer {{accessToken}}
+
+### ----------------------------------------------------------------------------
+### 4.1d GET /api/generator/generate - Generate alphanumeric only
+### ----------------------------------------------------------------------------
+GET {{baseUrl}}/api/generator/generate?length=12&numbers=true&symbols=false
+Authorization: Bearer {{accessToken}}
+
+### ----------------------------------------------------------------------------
+### 4.2 POST /api/generator/generate - Generate with full options (POST)
+### ----------------------------------------------------------------------------
+### All options available via POST body
+POST {{baseUrl}}/api/generator/generate
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+    "length": 32,
+    "includeUppercase": true,
+    "includeLowercase": true,
+    "includeNumbers": true,
+    "includeSymbols": true,
+    "excludeAmbiguous": false,
+    "excludeCharacters": ""
+}
+
+### Expected Response (200 OK):
+### { "password": "generated-password", "length": 32, ... }
+
+### ----------------------------------------------------------------------------
+### 4.2b POST /api/generator/generate - Minimum length (8)
+### ----------------------------------------------------------------------------
+POST {{baseUrl}}/api/generator/generate
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+    "length": 8,
+    "includeUppercase": true,
+    "includeLowercase": true,
+    "includeNumbers": true,
+    "includeSymbols": false
+}
+
+### ----------------------------------------------------------------------------
+### 4.2c POST /api/generator/generate - Maximum length (128)
+### ----------------------------------------------------------------------------
+POST {{baseUrl}}/api/generator/generate
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+    "length": 128,
+    "includeUppercase": true,
+    "includeLowercase": true,
+    "includeNumbers": true,
+    "includeSymbols": true
+}
+
+### ----------------------------------------------------------------------------
+### 4.2d POST /api/generator/generate - Exclude ambiguous characters
+### ----------------------------------------------------------------------------
+POST {{baseUrl}}/api/generator/generate
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+    "length": 20,
+    "includeUppercase": true,
+    "includeLowercase": true,
+    "includeNumbers": true,
+    "includeSymbols": true,
+    "excludeAmbiguous": true
+}
+
+### ----------------------------------------------------------------------------
+### 4.2e POST /api/generator/generate - Exclude specific characters
+### ----------------------------------------------------------------------------
+POST {{baseUrl}}/api/generator/generate
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+    "length": 16,
+    "includeUppercase": true,
+    "includeLowercase": true,
+    "includeNumbers": true,
+    "includeSymbols": true,
+    "excludeCharacters": "!@#$%"
+}
+
+### ----------------------------------------------------------------------------
+### 4.2f POST /api/generator/generate - Only lowercase and numbers
+### ----------------------------------------------------------------------------
+POST {{baseUrl}}/api/generator/generate
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+    "length": 16,
+    "includeUppercase": false,
+    "includeLowercase": true,
+    "includeNumbers": true,
+    "includeSymbols": false
+}
+
+### ----------------------------------------------------------------------------
+### 4.3 POST /api/generator/strength - Check strong password
+### ----------------------------------------------------------------------------
+POST {{baseUrl}}/api/generator/strength
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+    "password": "SecurePass123!@#"
+}
+
+### Expected Response (200 OK):
+### { "score": 4, "strength": "VERY_STRONG", "suggestions": [] }
+
+### ----------------------------------------------------------------------------
+### 4.3b POST /api/generator/strength - Check medium password
+### ----------------------------------------------------------------------------
+POST {{baseUrl}}/api/generator/strength
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+    "password": "Password123"
+}
+
+### ----------------------------------------------------------------------------
+### 4.3c POST /api/generator/strength - Check weak password
+### ----------------------------------------------------------------------------
+POST {{baseUrl}}/api/generator/strength
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+    "password": "password"
+}
+
+### Expected Response (200 OK):
+### { "score": 0, "strength": "VERY_WEAK", "suggestions": ["Add uppercase letters", ...] }
+
+### ----------------------------------------------------------------------------
+### 4.3d POST /api/generator/strength - Check very weak password
+### ----------------------------------------------------------------------------
+POST {{baseUrl}}/api/generator/strength
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+    "password": "123456"
+}
+
+### ----------------------------------------------------------------------------
+### 4.3e POST /api/generator/strength - Check common password
+### ----------------------------------------------------------------------------
+POST {{baseUrl}}/api/generator/strength
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+    "password": "qwerty"
+}
+
+### ============================================================================
+### PART 5: NOTIFICATION ENDPOINTS (/api/notify/**)
+### ============================================================================
+
+### ----------------------------------------------------------------------------
+### 5.1 POST /api/notify/email - Send email notification
+### ----------------------------------------------------------------------------
+### Required fields: to (valid email), subject, body
+### Note: In development, emails are simulated (EMAIL_SIMULATE=true)
+POST {{baseUrl}}/api/notify/email
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+    "to": "recipient@example.com",
+    "subject": "Test Email from Pass-Vault",
+    "body": "This is a test email sent through the notification service."
+}
+
+### Expected Response (202 Accepted):
+### { "status": "Email queued for delivery" }
+
+### ----------------------------------------------------------------------------
+### 5.1b POST /api/notify/email - Send email with HTML body
+### ----------------------------------------------------------------------------
+POST {{baseUrl}}/api/notify/email
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+    "to": "user@example.com",
+    "subject": "Welcome to Pass-Vault!",
+    "body": "<h1>Welcome!</h1><p>Thank you for joining Pass-Vault.</p>"
+}
+
+### ============================================================================
+### PART 6: ERROR HANDLING & NEGATIVE TESTS
+### ============================================================================
+
+### ----------------------------------------------------------------------------
+### 6.1 Access protected endpoint without token (401)
+### ----------------------------------------------------------------------------
+GET {{baseUrl}}/api/vault/entries
+
+### Expected Response (401 Unauthorized):
+### { "error": "Unauthorized", "message": "Missing or invalid Authorization header" }
+
+### ----------------------------------------------------------------------------
+### 6.2 Access with invalid token (401)
+### ----------------------------------------------------------------------------
+GET {{baseUrl}}/api/vault/entries
+Authorization: Bearer invalid_token_here
+
+### Expected Response (401 Unauthorized):
+### { "error": "Unauthorized", "message": "Token is invalid or expired" }
+
+### ----------------------------------------------------------------------------
+### 6.3 Access with expired token (401)
+### ----------------------------------------------------------------------------
+### Use an old/expired token here
+GET {{baseUrl}}/api/vault/entries
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxfQ.invalid
+
+### ----------------------------------------------------------------------------
+### 6.4 Access non-existent entry (404)
+### ----------------------------------------------------------------------------
+GET {{baseUrl}}/api/vault/entries/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{accessToken}}
+
+### Expected Response (404 Not Found)
+
+### ----------------------------------------------------------------------------
+### 6.5 Access non-existent category (404)
+### ----------------------------------------------------------------------------
+GET {{baseUrl}}/api/vault/categories/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{accessToken}}
+
+### Expected Response (404 Not Found)
+
+### ----------------------------------------------------------------------------
+### 6.6 Create entry with invalid data (400)
+### ----------------------------------------------------------------------------
+POST {{baseUrl}}/api/vault/entries
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+    "title": "",
+    "password": ""
+}
+
+### Expected Response (400 Bad Request):
+### { "errors": ["title: must not be blank", "password: must not be blank"] }
+
+### ----------------------------------------------------------------------------
+### 6.7 Create category with empty name (400)
+### ----------------------------------------------------------------------------
+POST {{baseUrl}}/api/vault/categories
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+    "name": ""
+}
+
+### Expected Response (400 Bad Request)
+
+### ----------------------------------------------------------------------------
+### 6.8 Register with existing username (409 Conflict)
+### ----------------------------------------------------------------------------
+POST {{baseUrl}}/api/auth/register
+Content-Type: {{contentType}}
+
+{
+    "username": "testuser",
+    "email": "different@example.com",
+    "password": "Password123!"
+}
+
+### Expected Response (409 Conflict):
+### { "message": "Username is already taken" }
+
+### ----------------------------------------------------------------------------
+### 6.9 Register with existing email (409 Conflict)
+### ----------------------------------------------------------------------------
+POST {{baseUrl}}/api/auth/register
+Content-Type: {{contentType}}
+
+{
+    "username": "differentuser",
+    "email": "testuser@example.com",
+    "password": "Password123!"
+}
+
+### Expected Response (409 Conflict):
+### { "message": "Email is already in use" }
+
+### ----------------------------------------------------------------------------
+### 6.10 Login with wrong password (401)
+### ----------------------------------------------------------------------------
+POST {{baseUrl}}/api/auth/login
+Content-Type: {{contentType}}
+
+{
+    "username": "testuser",
+    "password": "WrongPassword123!"
+}
+
+### Expected Response (401 Unauthorized)
+
+### ----------------------------------------------------------------------------
+### 6.11 Login with non-existent user (401)
+### ----------------------------------------------------------------------------
+POST {{baseUrl}}/api/auth/login
+Content-Type: {{contentType}}
+
+{
+    "username": "nonexistentuser",
+    "password": "Password123!"
+}
+
+### Expected Response (401 Unauthorized)
+
+### ----------------------------------------------------------------------------
+### 6.12 Refresh with invalid token (400)
+### ----------------------------------------------------------------------------
+POST {{baseUrl}}/api/auth/refresh
+Content-Type: {{contentType}}
+
+{
+    "refreshToken": "invalid-refresh-token"
+}
+
+### Expected Response (400 Bad Request)
+
+### ----------------------------------------------------------------------------
+### 6.13 Send email with invalid email address (400)
+### ----------------------------------------------------------------------------
+POST {{baseUrl}}/api/notify/email
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+    "to": "not-an-email",
+    "subject": "Test",
+    "body": "Test body"
+}
+
+### Expected Response (400 Bad Request)
+
+### ----------------------------------------------------------------------------
+### 6.14 Generate password with invalid length (400)
+### ----------------------------------------------------------------------------
+POST {{baseUrl}}/api/generator/generate
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+    "length": 5,
+    "includeUppercase": true,
+    "includeLowercase": true,
+    "includeNumbers": true,
+    "includeSymbols": true
+}
+
+### Expected Response (400 Bad Request): length must be >= 8
+
+### ============================================================================
+### PART 7: HEALTH & ACTUATOR ENDPOINTS (No Auth Required)
+### ============================================================================
+
+### ----------------------------------------------------------------------------
+### 7.1 API Gateway health check
+### ----------------------------------------------------------------------------
+GET {{baseUrl}}/actuator/health
+
+### Expected Response (200 OK):
+### { "status": "UP" }
+
+### ----------------------------------------------------------------------------
+### 7.2 API Gateway info
+### ----------------------------------------------------------------------------
+GET {{baseUrl}}/actuator/info
+
+### ----------------------------------------------------------------------------
+### 7.3 API Gateway Prometheus metrics
+### ----------------------------------------------------------------------------
+GET {{baseUrl}}/actuator/prometheus
+
+### ----------------------------------------------------------------------------
+### 7.4 Gateway routes list
+### ----------------------------------------------------------------------------
+GET {{baseUrl}}/actuator/gateway/routes
+
+### ============================================================================
+### PART 8: CLEANUP & LOGOUT
+### ============================================================================
+
+### ----------------------------------------------------------------------------
+### 8.1 Delete remaining test entries
+### ----------------------------------------------------------------------------
+DELETE {{baseUrl}}/api/vault/entries/{{entryId1}}
+Authorization: Bearer {{accessToken}}
+
+###
+DELETE {{baseUrl}}/api/vault/entries/{{entryId2}}
+Authorization: Bearer {{accessToken}}
+
+###
+DELETE {{baseUrl}}/api/vault/entries/{{entryId3}}
+Authorization: Bearer {{accessToken}}
+
+### ----------------------------------------------------------------------------
+### 8.2 Delete remaining test categories
+### ----------------------------------------------------------------------------
+DELETE {{baseUrl}}/api/vault/categories/{{categoryId1}}
+Authorization: Bearer {{accessToken}}
+
+###
+DELETE {{baseUrl}}/api/vault/categories/{{categoryId2}}
+Authorization: Bearer {{accessToken}}
+
+### ----------------------------------------------------------------------------
+### 8.3 Logout current user
+### ----------------------------------------------------------------------------
+POST {{baseUrl}}/api/auth/logout
+Authorization: Bearer {{accessToken}}
+
+### Expected Response (200 OK):
+### { "success": true, "message": "Successfully logged out" }
+
+### ----------------------------------------------------------------------------
+### 8.4 Verify token is invalidated after logout
+### ----------------------------------------------------------------------------
+GET {{baseUrl}}/api/vault/entries
+Authorization: Bearer {{accessToken}}
+
+### Expected Response (401 Unauthorized) - token should be invalidated
+
+### ============================================================================
+### END OF COMPLETE TEST SUITE
+### ============================================================================
+### 
+### SUMMARY OF ALL ENDPOINTS TESTED:
+### 
+### Auth Service (5 endpoints):
+###   - POST /api/auth/register
+###   - POST /api/auth/login
+###   - POST /api/auth/logout
+###   - POST /api/auth/refresh
+###   - GET  /api/auth/validate
+### 
+### Vault Service - Categories (5 endpoints):
+###   - GET    /api/vault/categories
+###   - GET    /api/vault/categories/{id}
+###   - POST   /api/vault/categories
+###   - PUT    /api/vault/categories/{id}
+###   - DELETE /api/vault/categories/{id}
+### 
+### Vault Service - Entries (5 endpoints):
+###   - GET    /api/vault/entries
+###   - GET    /api/vault/entries/{id}
+###   - POST   /api/vault/entries
+###   - PUT    /api/vault/entries/{id}
+###   - DELETE /api/vault/entries/{id}
+### 
+### Password Generator Service (3 endpoints):
+###   - GET  /api/generator/generate
+###   - POST /api/generator/generate
+###   - POST /api/generator/strength
+### 
+### Notification Service (1 endpoint):
+###   - POST /api/notify/email
+### 
+### Actuator Endpoints (4 endpoints):
+###   - GET /actuator/health
+###   - GET /actuator/info
+###   - GET /actuator/prometheus
+###   - GET /actuator/gateway/routes
+### 
+### TOTAL: 23 unique endpoints
+### ============================================================================
