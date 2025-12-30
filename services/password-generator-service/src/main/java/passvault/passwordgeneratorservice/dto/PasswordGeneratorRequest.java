@@ -4,7 +4,10 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.Builder;
 import lombok.Data;
-
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+@NoArgsConstructor
+@AllArgsConstructor
 @Data
 @Builder
 public class PasswordGeneratorRequest {
